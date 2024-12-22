@@ -128,13 +128,12 @@ function App() {
     [itemsFiltres]
   );
 
-  const stats = {
-    totalItems: items.length,
-    completedByGreg: items.filter(i => i.completePar === 'Greg').length,
-    completedByCeline: items.filter(i => i.completePar === 'Céline').length,
-    addedByGreg: items.filter(i => i.ajoutePar === 'Greg').length,
-    addedByCeline: items.filter(i => i.ajoutePar === 'Céline').length,
-  };
+  const stats = useMemo(() => ({
+    addedByGreg: items.filter(item => item.ajoutePar === 'Greg').length,
+    addedByCeline: items.filter(item => item.ajoutePar === 'Céline').length,
+    completedByGreg: items.filter(item => item.complete && item.completePar === 'Greg').length,
+    completedByCeline: items.filter(item => item.complete && item.completePar === 'Céline').length
+  }), [items]);
 
   if (!nom) {
     return (
@@ -166,20 +165,20 @@ function App() {
   }
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gray-50 text-gray-800'}`}>
-      <div className="max-w-xl mx-auto p-4">
-        <header className="flex items-center justify-between py-6">
+    <div className={`min-h-screen w-full ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gray-50 text-gray-800'}`}>
+      <div className="max-w-xl mx-auto p-2 sm:p-4">
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-4 sm:py-6 space-y-4 sm:space-y-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-500 rounded-lg">
               <ShoppingCart className="text-white" size={24} />
             </div>
-            <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+            <h1 className={`text-xl sm:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
               Nos Courses
             </h1>
           </div>
           
-          <div className="flex items-center gap-6 ml-8">
-            <div className={`flex items-center gap-2 px-4 py-2 ${
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
+            <div className={`flex items-center gap-2 px-3 py-2 ${
               darkMode 
                 ? 'bg-gray-800 text-gray-300' 
                 : 'bg-white text-gray-600'
@@ -187,17 +186,15 @@ function App() {
               {nom}
               <button 
                 onClick={() => setNom('')}
-                className={`hover:text-gray-400 transition-colors ${
-                  darkMode ? 'text-gray-300 hover:text-gray-100' : 'text-gray-600 hover:text-gray-800'
-                }`}
+                className={`hover:text-gray-400 transition-colors`}
               >
-                <LogOut size={18} />
+                <LogOut size={16} />
               </button>
             </div>
             
             <button 
               onClick={toutEffacer}
-              className={`px-4 py-2 rounded-lg transition-colors shadow-sm ${
+              className={`px-3 py-2 rounded-lg transition-colors shadow-sm flex-1 sm:flex-none ${
                 darkMode
                   ? 'bg-gray-800 text-red-400 hover:bg-red-500/20'
                   : 'bg-white text-red-500 hover:bg-red-50'
@@ -219,8 +216,8 @@ function App() {
           </div>
         </header>
 
-        <form onSubmit={ajouterItem} className="mb-8">
-          <div className={`space-y-2 p-4 ${
+        <form onSubmit={ajouterItem} className="mb-4 sm:mb-8">
+          <div className={`space-y-2 p-3 sm:p-4 ${
             darkMode ? 'bg-gray-800' : 'bg-white'
           } rounded-xl shadow-sm`}>
             <div className="flex gap-2">
@@ -229,26 +226,26 @@ function App() {
                 value={newItem}
                 onChange={(e) => setNewItem(e.target.value)}
                 placeholder="Ajouter un article..."
-                className={`flex-1 px-4 py-3 rounded-lg bg-transparent focus:outline-none ${
+                className={`flex-1 px-3 py-2 sm:px-4 sm:py-3 rounded-lg bg-transparent focus:outline-none ${
                   darkMode ? 'text-white placeholder-gray-400' : 'text-gray-800 placeholder-gray-500'
                 }`}
               />
               <button
                 type="submit"
-                className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                className="p-2 sm:p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
               >
                 <Plus size={20} />
               </button>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <select
                 value={categorie}
                 onChange={(e) => setCategorie(e.target.value)}
-                className={`flex-1 px-3 py-2 rounded-lg ${
+                className={`w-full sm:w-1/2 px-3 py-2 rounded-lg ${
                   darkMode 
                     ? 'bg-gray-700 text-white border-gray-600' 
                     : 'bg-gray-50 text-gray-800 border-gray-200'
-                } border`}
+                } border text-sm`}
               >
                 {Object.values(CATEGORIES).map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
@@ -257,11 +254,11 @@ function App() {
               <select
                 value={magasin}
                 onChange={(e) => setMagasin(e.target.value)}
-                className={`flex-1 px-3 py-2 rounded-lg ${
+                className={`w-full sm:w-1/2 px-3 py-2 rounded-lg ${
                   darkMode 
                     ? 'bg-gray-700 text-white border-gray-600' 
                     : 'bg-gray-50 text-gray-800 border-gray-200'
-                } border`}
+                } border text-sm`}
               >
                 {Object.values(MAGASINS).map(mag => (
                   <option key={mag} value={mag}>{mag}</option>
@@ -448,24 +445,48 @@ function App() {
               darkMode ? 'bg-gray-700' : 'bg-gray-50'
             }`}>
               <div className="text-2xl font-bold text-blue-500">
-                {itemsNonCompletes.length}
+                {stats.addedByGreg}
               </div>
               <div className={`text-sm ${
                 darkMode ? 'text-gray-300' : 'text-gray-600'
               }`}>
-                Articles à acheter
+                Ajoutés par Greg
+              </div>
+            </div>
+            <div className={`text-center p-3 rounded-lg ${
+              darkMode ? 'bg-gray-700' : 'bg-gray-50'
+            }`}>
+              <div className="text-2xl font-bold text-pink-500">
+                {stats.addedByCeline}
+              </div>
+              <div className={`text-sm ${
+                darkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}>
+                Ajoutés par Céline
               </div>
             </div>
             <div className={`text-center p-3 rounded-lg ${
               darkMode ? 'bg-gray-700' : 'bg-gray-50'
             }`}>
               <div className="text-2xl font-bold text-green-500">
-                {itemsCompletes.length}
+                {stats.completedByGreg}
               </div>
               <div className={`text-sm ${
                 darkMode ? 'text-gray-300' : 'text-gray-600'
               }`}>
-                Articles achetés
+                Pris par Greg
+              </div>
+            </div>
+            <div className={`text-center p-3 rounded-lg ${
+              darkMode ? 'bg-gray-700' : 'bg-gray-50'
+            }`}>
+              <div className="text-2xl font-bold text-green-500">
+                {stats.completedByCeline}
+              </div>
+              <div className={`text-sm ${
+                darkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}>
+                Pris par Céline
               </div>
             </div>
           </div>
