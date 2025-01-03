@@ -2,18 +2,27 @@
 import { useState, useEffect, useMemo } from 'react';
 import { database } from './firebase';
 import { ref, onValue, push, update, remove } from 'firebase/database';
-import { Check, Plus, Trash2, ShoppingCart, LogOut } from 'lucide-react';
-import { CATEGORIES, MAGASINS } from './config/constants';
+import { Check, Plus, Trash2, ShoppingCart, LogOut, Share2 } from 'lucide-react';
+import { MAGASINS, CATEGORIES } from './config/constants';
 
 function App() {
   const [items, setItems] = useState([]);
   const [newItem, setNewItem] = useState('');
   const [nom, setNom] = useState(() => localStorage.getItem('nom') || '');
   const [recherche, setRecherche] = useState('');
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
   const [sortType, setSortType] = useState('date');
-  const [categorie, setCategorie] = useState(CATEGORIES.AUTRES);
   const [magasin, setMagasin] = useState(MAGASINS.CARREFOUR);
+  const [itemEnEdition, setItemEnEdition] = useState(null);
+  const [texteEdition, setTexteEdition] = useState('');
+  const [magasinsReplies, setMagasinsReplies] = useState(() => {
+    return Object.values(MAGASINS).reduce((acc, magasin) => {
+      acc[magasin] = false;
+      return acc;
+    }, {});
+  });
+  const [categorie, setCategorie] = useState(CATEGORIES.AUTRES);
+  const [urgent, setUrgent] = useState(false);
 
   useEffect(() => {
     const itemsRef = ref(database, 'courses');
@@ -59,11 +68,13 @@ function App() {
         nom: newItem.trim(),
         complete: false,
         ajoutePar: nom,
-        categorie,
         magasin,
+        categorie,
+        urgent,
         timestamp: Date.now()
       });
       setNewItem('');
+      setUrgent(false);
     }
   };
 
@@ -108,8 +119,6 @@ function App() {
           return a.nom.localeCompare(b.nom);
         case 'ajoutePar':
           return a.ajoutePar.localeCompare(b.ajoutePar);
-        case 'categorie':
-          return a.categorie.localeCompare(b.categorie);
         case 'magasin':
           return a.magasin.localeCompare(b.magasin);
         default:
@@ -128,12 +137,46 @@ function App() {
     [itemsFiltres]
   );
 
-  const stats = useMemo(() => ({
-    addedByGreg: items.filter(item => item.ajoutePar === 'Greg').length,
-    addedByCeline: items.filter(item => item.ajoutePar === 'Céline').length,
-    completedByGreg: items.filter(item => item.complete && item.completePar === 'Greg').length,
-    completedByCeline: items.filter(item => item.complete && item.completePar === 'Céline').length
-  }), [items]);
+  const modifierItem = (id) => {
+    const itemRef = ref(database, `courses/${id}`);
+    update(itemRef, {
+      nom: texteEdition.trim(),
+      timestamp: Date.now()
+    });
+    setItemEnEdition(null);
+    setTexteEdition('');
+  };
+
+  const toggleMagasin = (magasin) => {
+    setMagasinsReplies(prev => ({
+      ...prev,
+      [magasin]: !prev[magasin]
+    }));
+  };
+
+  const partagerListe = () => {
+    const itemsAPartager = itemsNonCompletes
+      .map(item => `${item.urgent ? '🔴' : '•'} ${item.nom} (${item.magasin})`)
+      .join('\n');
+      
+    const texte = `Liste de courses :\n\n${itemsAPartager}`;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: 'Liste de courses',
+        text: texte
+      }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(texte)
+        .then(() => alert('Liste copiée dans le presse-papier !'))
+        .catch(console.error);
+    }
+  };
+
+  const itemsUrgents = useMemo(() => 
+    itemsNonCompletes.filter(item => item.urgent).length,
+    [itemsNonCompletes]
+  );
 
   if (!nom) {
     return (
@@ -166,10 +209,10 @@ function App() {
 
   return (
     <div className={`min-h-screen w-full ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gray-50 text-gray-800'}`}>
-      <div className="max-w-xl mx-auto p-2 sm:p-4">
-        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-4 sm:py-6 space-y-4 sm:space-y-0">
+      <div className="max-w-xl mx-auto p-2 sm:p-4 md:p-6">
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-4 sm:py-6 gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-500 rounded-lg">
+            <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
               <ShoppingCart className="text-white" size={24} />
             </div>
             <h1 className={`text-xl sm:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
@@ -177,47 +220,67 @@ function App() {
             </h1>
           </div>
           
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
-            <div className={`flex items-center gap-2 px-3 py-2 ${
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className={`flex items-center gap-2 px-4 py-2 ${
               darkMode 
                 ? 'bg-gray-800 text-gray-300' 
                 : 'bg-white text-gray-600'
-            } rounded-lg shadow-sm`}>
-              {nom}
+            } rounded-xl shadow-sm flex-1 sm:flex-none justify-center sm:justify-start`}>
+              <span className={`font-medium ${
+                nom === 'Greg' ? 'text-blue-500' : 'text-pink-500'
+              }`}>
+                {nom}
+              </span>
               <button 
                 onClick={() => setNom('')}
-                className={`hover:text-gray-400 transition-colors`}
+                className="hover:text-gray-400 transition-colors"
               >
                 <LogOut size={16} />
               </button>
             </div>
             
-            <button 
-              onClick={toutEffacer}
-              className={`px-3 py-2 rounded-lg transition-colors shadow-sm flex-1 sm:flex-none ${
-                darkMode
-                  ? 'bg-gray-800 text-red-400 hover:bg-red-500/20'
-                  : 'bg-white text-red-500 hover:bg-red-50'
-              }`}
-            >
-              Tout effacer
-            </button>
-            
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className={`p-2 rounded-lg transition-colors shadow-sm ${
-                darkMode 
-                  ? 'bg-gray-800 text-yellow-400 hover:bg-yellow-500/20' 
-                  : 'bg-white text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              {darkMode ? '☀️' : '🌙'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={partagerListe}
+                className={`p-2 rounded-xl transition-colors shadow-sm ${
+                  darkMode 
+                    ? 'bg-gray-800 text-blue-400 hover:bg-blue-500/20' 
+                    : 'bg-white text-blue-500 hover:bg-blue-50'
+                }`}
+                title="Partager la liste"
+              >
+                <Share2 size={20} />
+              </button>
+              
+              <button
+                onClick={() => setDarkMode(!darkMode)}
+                className={`p-2 rounded-xl transition-colors shadow-sm ${
+                  darkMode 
+                    ? 'bg-gray-800 text-yellow-400 hover:bg-yellow-500/20' 
+                    : 'bg-white text-gray-600 hover:bg-gray-100'
+                }`}
+                title={darkMode ? "Mode clair" : "Mode sombre"}
+              >
+                {darkMode ? '☀️' : '🌙'}
+              </button>
+              
+              <button 
+                onClick={toutEffacer}
+                className={`p-2 rounded-xl transition-colors shadow-sm ${
+                  darkMode
+                    ? 'bg-gray-800 text-red-400 hover:bg-red-500/20'
+                    : 'bg-white text-red-500 hover:bg-red-50'
+                }`}
+                title="Tout effacer"
+              >
+                <Trash2 size={20} />
+              </button>
+            </div>
           </div>
         </header>
 
-        <form onSubmit={ajouterItem} className="mb-4 sm:mb-8">
-          <div className={`space-y-2 p-3 sm:p-4 ${
+        <form onSubmit={ajouterItem} className="mb-3 sm:mb-6">
+          <div className={`space-y-2 p-2 sm:p-4 ${
             darkMode ? 'bg-gray-800' : 'bg-white'
           } rounded-xl shadow-sm`}>
             <div className="flex gap-2">
@@ -237,33 +300,44 @@ function App() {
                 <Plus size={20} />
               </button>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2">
+            <select
+              value={magasin}
+              onChange={(e) => setMagasin(e.target.value)}
+              className={`w-full px-3 py-2 rounded-lg ${
+                darkMode 
+                  ? 'bg-gray-700 text-white border-gray-600' 
+                  : 'bg-gray-50 text-gray-800 border-gray-200'
+              } border text-sm`}
+            >
+              {Object.values(MAGASINS).map(mag => (
+                <option key={mag} value={mag}>{mag}</option>
+              ))}
+            </select>
+            <div className="flex gap-2 items-center">
               <select
                 value={categorie}
                 onChange={(e) => setCategorie(e.target.value)}
-                className={`w-full sm:w-1/2 px-3 py-2 rounded-lg ${
+                className={`px-3 py-2 rounded-lg ${
                   darkMode 
-                    ? 'bg-gray-700 text-white border-gray-600' 
-                    : 'bg-gray-50 text-gray-800 border-gray-200'
-                } border text-sm`}
+                    ? 'bg-gray-700 text-white' 
+                    : 'bg-gray-50 text-gray-800'
+                }`}
               >
                 {Object.values(CATEGORIES).map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
-              <select
-                value={magasin}
-                onChange={(e) => setMagasin(e.target.value)}
-                className={`w-full sm:w-1/2 px-3 py-2 rounded-lg ${
-                  darkMode 
-                    ? 'bg-gray-700 text-white border-gray-600' 
-                    : 'bg-gray-50 text-gray-800 border-gray-200'
-                } border text-sm`}
-              >
-                {Object.values(MAGASINS).map(mag => (
-                  <option key={mag} value={mag}>{mag}</option>
-                ))}
-              </select>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={urgent}
+                  onChange={(e) => setUrgent(e.target.checked)}
+                  className="rounded"
+                />
+                <span className={`text-sm ${urgent ? 'text-red-500' : ''}`}>
+                  Urgent
+                </span>
+              </label>
             </div>
           </div>
         </form>
@@ -297,18 +371,22 @@ function App() {
             <option value="date">Tri par date</option>
             <option value="nom">Tri par nom</option>
             <option value="ajoutePar">Tri par personne</option>
-            <option value="categorie">Tri par catégorie</option>
             <option value="magasin">Tri par magasin</option>
           </select>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {itemsNonCompletes.length > 0 && (
             <section>
               <h2 className={`text-lg font-semibold mb-3 ${
                 darkMode ? 'text-white' : 'text-gray-800'
               }`}>
                 À acheter ({itemsNonCompletes.length})
+                {itemsUrgents > 0 && (
+                  <span className="ml-2 text-sm bg-red-500 text-white px-2 py-1 rounded-full">
+                    {itemsUrgents} urgent{itemsUrgents > 1 ? 's' : ''}
+                  </span>
+                )}
               </h2>
               {Object.values(MAGASINS).map(magasin => {
                 const itemsDuMagasin = itemsNonCompletes.filter(item => item.magasin === magasin);
@@ -316,44 +394,121 @@ function App() {
                 
                 return (
                   <div key={magasin} className="mb-6">
-                    <h3 className={`text-md font-medium mb-2 ${
-                      darkMode ? 'text-gray-300' : 'text-gray-600'
+                    <button
+                      onClick={() => toggleMagasin(magasin)}
+                      className={`w-full flex items-center justify-between p-2 rounded-lg transition-colors ${
+                        darkMode 
+                          ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' 
+                          : 'bg-blue-50 text-gray-600 hover:bg-blue-100'
+                      }`}
+                    >
+                      <h3 className={`text-md font-medium ${
+                        darkMode ? 'text-gray-300' : 'text-gray-600'
+                      }`}>
+                        {magasin} ({itemsDuMagasin.length})
+                      </h3>
+                      <span className="transform transition-transform duration-200" 
+                        style={{ 
+                          transform: magasinsReplies[magasin] ? 'rotate(180deg)' : 'rotate(0deg)'
+                        }}
+                      >
+                        ▼
+                      </span>
+                    </button>
+                    <div className={`space-y-2 mt-2 transition-all duration-200 ${
+                      magasinsReplies[magasin] ? 'hidden' : ''
                     }`}>
-                      {magasin} ({itemsDuMagasin.length})
-                    </h3>
-                    <div className="space-y-2">
                       {itemsDuMagasin.map(item => (
                         <div 
                           key={item.id}
-                          className={`group flex items-center justify-between p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow ${
-                            darkMode 
-                              ? 'bg-gray-800 hover:bg-gray-750' 
-                              : 'bg-blue-50 hover:bg-blue-100'
+                          className={`group flex items-center justify-between p-3 sm:p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow ${
+                            item.urgent
+                              ? darkMode 
+                                ? 'bg-red-900/20 hover:bg-red-900/30 animate-pulse' 
+                                : 'bg-red-50 hover:bg-red-100/80'
+                              : darkMode 
+                                ? 'bg-gray-800 hover:bg-gray-750' 
+                                : 'bg-blue-50 hover:bg-blue-100'
                           }`}
                         >
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 flex-1">
                             <button
                               onClick={() => toggleComplete(item.id, item.complete)}
                               className="p-2 rounded-lg bg-gray-100 hover:bg-green-500 hover:text-white transition-colors"
                             >
                               <Check size={16} />
                             </button>
-                            <div>
-                              <span className={`font-medium ${
-                                darkMode ? 'text-gray-100' : 'text-gray-800'
-                              }`}>
-                                {item.nom}
-                              </span>
-                              <div className="text-sm">
-                                <span className={`${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                                  {item.categorie}
-                                </span>
-                                <br />
-                                Ajouté par <span className={item.ajoutePar === 'Greg' ? 'text-blue-500' : 'text-pink-500'}>
-                                  {item.ajoutePar}
-                                </span>
-                                {' • '}{tempsEcoule(item.timestamp)}
-                              </div>
+                            <div className="flex-1">
+                              {itemEnEdition === item.id ? (
+                                <form 
+                                  onSubmit={(e) => {
+                                    e.preventDefault();
+                                    modifierItem(item.id);
+                                  }}
+                                  className="flex flex-col sm:flex-row gap-2"
+                                >
+                                  <input
+                                    type="text"
+                                    value={texteEdition}
+                                    onChange={(e) => setTexteEdition(e.target.value)}
+                                    className={`flex-1 px-2 py-1 sm:px-3 sm:py-2 rounded-lg ${
+                                      darkMode 
+                                        ? 'bg-gray-700 text-white' 
+                                        : 'bg-white text-gray-800'
+                                    }`}
+                                    autoFocus
+                                  />
+                                  <div className="flex gap-2">
+                                    <button
+                                      type="submit"
+                                      className="flex-1 sm:flex-none px-3 py-1 sm:py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+                                    >
+                                      OK
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setItemEnEdition(null);
+                                        setTexteEdition('');
+                                      }}
+                                      className="flex-1 sm:flex-none px-3 py-1 sm:py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+                                    >
+                                      Annuler
+                                    </button>
+                                  </div>
+                                </form>
+                              ) : (
+                                <>
+                                  <span 
+                                    className={`font-medium ${
+                                      item.urgent 
+                                        ? 'text-red-500 font-bold' 
+                                        : darkMode 
+                                          ? 'text-gray-100' 
+                                          : 'text-gray-800'
+                                    }`}
+                                    onClick={() => {
+                                      setItemEnEdition(item.id);
+                                      setTexteEdition(item.nom);
+                                    }}
+                                    role="button"
+                                    tabIndex={0}
+                                  >
+                                    {item.urgent && '🔴 '}{item.nom}
+                                    {item.urgent && (
+                                      <span className="ml-2 text-xs bg-red-500 text-white px-2 py-1 rounded-full">
+                                        URGENT
+                                      </span>
+                                    )}
+                                  </span>
+                                  <div className="text-sm">
+                                    Ajouté par <span className={item.ajoutePar === 'Greg' ? 'text-blue-500' : 'text-pink-500'}>
+                                      {item.ajoutePar}
+                                    </span>
+                                    {' • '}{tempsEcoule(item.timestamp)}
+                                  </div>
+                                </>
+                              )}
                             </div>
                           </div>
                           <button
@@ -430,66 +585,6 @@ function App() {
               </div>
             </div>
           )}
-        </div>
-
-        <div className={`mt-8 p-4 rounded-xl shadow-sm ${
-          darkMode ? 'bg-gray-800' : 'bg-white'
-        }`}>
-          <h3 className={`text-lg font-semibold mb-4 ${
-            darkMode ? 'text-white' : 'text-gray-800'
-          }`}>
-            Statistiques
-          </h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className={`text-center p-3 rounded-lg ${
-              darkMode ? 'bg-gray-700' : 'bg-gray-50'
-            }`}>
-              <div className="text-2xl font-bold text-blue-500">
-                {stats.addedByGreg}
-              </div>
-              <div className={`text-sm ${
-                darkMode ? 'text-gray-300' : 'text-gray-600'
-              }`}>
-                Ajoutés par Greg
-              </div>
-            </div>
-            <div className={`text-center p-3 rounded-lg ${
-              darkMode ? 'bg-gray-700' : 'bg-gray-50'
-            }`}>
-              <div className="text-2xl font-bold text-pink-500">
-                {stats.addedByCeline}
-              </div>
-              <div className={`text-sm ${
-                darkMode ? 'text-gray-300' : 'text-gray-600'
-              }`}>
-                Ajoutés par Céline
-              </div>
-            </div>
-            <div className={`text-center p-3 rounded-lg ${
-              darkMode ? 'bg-gray-700' : 'bg-gray-50'
-            }`}>
-              <div className="text-2xl font-bold text-green-500">
-                {stats.completedByGreg}
-              </div>
-              <div className={`text-sm ${
-                darkMode ? 'text-gray-300' : 'text-gray-600'
-              }`}>
-                Pris par Greg
-              </div>
-            </div>
-            <div className={`text-center p-3 rounded-lg ${
-              darkMode ? 'bg-gray-700' : 'bg-gray-50'
-            }`}>
-              <div className="text-2xl font-bold text-green-500">
-                {stats.completedByCeline}
-              </div>
-              <div className={`text-sm ${
-                darkMode ? 'text-gray-300' : 'text-gray-600'
-              }`}>
-                Pris par Céline
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

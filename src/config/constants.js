@@ -3,26 +3,26 @@ export const USERS = {
   CELINE: "Céline",
 };
 
-export const CATEGORIES = {
-  BOISSONS: "Boissons",
-  ENTRETIEN: "Entretien",
-  EPICERIE: "Épicerie",
-  FRUITS_LEGUMES: "Fruits et Légumes",
-  HYGIENE: "Hygiène",
-  SURGELES: "Surgelés",
-  VIANDE_POISSON: "Viande et Poisson",
-  AUTRES: "Autres",
-};
-
 export const MAGASINS = {
   CARREFOUR: "Carrefour",
   INTERMARCHE: "Intermarché",
   PICARD: "Picard",
   SATORIZ: "Satoriz",
+  VALTHOIRY: "Valthoiry",
   AUTRES: "Autres",
 };
 
 export const USER_COLORS = {
   [USERS.GREG]: "text-blue-500",
   [USERS.CELINE]: "text-pink-500",
+};
+
+export const CATEGORIES = {
+  FRUITS_LEGUMES: "Fruits et Légumes",
+  VIANDE: "Viande",
+  POISSON: "Poisson",
+  EPICERIE: "Épicerie",
+  BOISSONS: "Boissons",
+  HYGIENE: "Hygiène",
+  AUTRES: "Autres",
 };
