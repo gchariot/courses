@@ -294,9 +294,9 @@ function App() {
 
   return (
     <div className={`min-h-screen w-full ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gray-50 text-gray-800'}`}>
-      <div className="max-w-xl mx-auto px-2 py-2">
-        <header className="flex flex-col sm:flex-row gap-2 mb-4">
-          <div className="flex items-center justify-between w-full">
+      <div className="max-w-xl mx-auto px-2 xs:px-3 sm:px-4">
+        <header className="flex flex-col xs:flex-row items-start xs:items-center gap-2">
+          <div className="flex items-center justify-between w-full xs:w-auto">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl">
                 <ShoppingCart className="text-white" size={18} />
@@ -304,7 +304,7 @@ function App() {
               <h1 className="text-lg font-bold">Nos Courses</h1>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 xs:gap-2">
               <div className={`flex items-center gap-1 px-2 py-1 rounded-lg ${
                 darkMode ? 'bg-gray-800' : 'bg-white'
               }`}>
@@ -696,7 +696,7 @@ function App() {
                     darkMode ? 'text-white placeholder-gray-400' : 'text-gray-800 placeholder-gray-500'
                   }`}
                 />
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex flex-col xs:flex-row gap-2">
                   <input
                     type="text"
                     value={destinataire}
@@ -711,7 +711,7 @@ function App() {
                     value={prix}
                     onChange={(e) => setPrix(e.target.value)}
                     placeholder="Prix estimé"
-                    className={`w-full sm:w-1/3 px-3 py-2 rounded-lg ${
+                    className={`w-full xs:w-1/3 px-3 py-2 rounded-lg ${
                       darkMode ? 'bg-gray-700' : 'bg-gray-50'
                     }`}
                   />
