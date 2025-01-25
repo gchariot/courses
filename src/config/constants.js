@@ -26,3 +26,15 @@ export const CATEGORIES = {
   HYGIENE: "Hygiène",
   AUTRES: "Autres",
 };
+
+export const TABS = {
+  COURSES: "courses",
+  CADEAUX: "cadeaux",
+};
+
+export const OCCASIONS = {
+  NOEL: "Noël",
+  ANNIVERSAIRE: "Anniversaire",
+  MAISON: "Maison",
+  AUTRE: "Autre",
+};

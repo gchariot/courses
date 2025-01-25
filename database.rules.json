@@ -27,6 +27,34 @@
           ".validate": "newData.isString()"
         }
       }
+    },
+    "cadeaux": {
+      ".read": true,
+      ".write": true,
+      "$cadeau": {
+        ".validate": "newData.hasChildren(['nom', 'destinataire', 'ajoutePar', 'timestamp'])",
+        "nom": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+        },
+        "destinataire": {
+          ".validate": "newData.isString() && newData.val().length > 0"
+        },
+        "ajoutePar": {
+          ".validate": "newData.isString() && (newData.val() === 'Greg' || newData.val() === 'Céline')"
+        },
+        "occasion": {
+          ".validate": "newData.isString()"
+        },
+        "prix": {
+          ".validate": "newData.isString()"
+        },
+        "timestamp": {
+          ".validate": "newData.isNumber()"
+        },
+        "achete": {
+          ".validate": "newData.isBoolean()"
+        }
+      }
     }
   }
 } 
