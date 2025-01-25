@@ -275,7 +275,7 @@ function App() {
           </p>
           <div className="space-y-4">
             <button 
-              onClick={() => setNom('Greg')}Z
+              onClick={() => setNom('Greg')}
               className="w-full py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg"
             >
               Greg
@@ -294,62 +294,47 @@ function App() {
 
   return (
     <div className={`min-h-screen w-full ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gray-50 text-gray-800'}`}>
-      <div className="max-w-xl mx-auto px-2 sm:px-4 py-2 sm:py-4">
-        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 mb-4 sm:mb-6">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
-              <ShoppingCart className="text-white" size={20} />
-            </div>
-            <h1 className="text-lg sm:text-xl font-bold">Nos Courses</h1>
-          </div>
-          
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-            <div className={`flex items-center gap-2 px-3 py-2 rounded-xl ${
-              darkMode ? 'bg-gray-800' : 'bg-white'
-            } shadow-sm`}>
-              <span className={nom === 'Greg' ? 'text-blue-500' : 'text-pink-500'}>
-                {nom}
-              </span>
-              <button onClick={() => setNom('')} className="p-1">
-                <LogOut size={16} />
-              </button>
+      <div className="max-w-xl mx-auto px-2 py-2">
+        <header className="flex flex-col sm:flex-row gap-2 mb-4">
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl">
+                <ShoppingCart className="text-white" size={18} />
+              </div>
+              <h1 className="text-lg font-bold">Nos Courses</h1>
             </div>
             
-            <button
-              onClick={partagerListe}
-              className={`p-2 rounded-xl ${
-                darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
-              }`}
-            >
-              <Share2 size={20} />
-            </button>
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className={`p-2 rounded-xl ${
-                darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
-              }`}
-            >
-              {darkMode ? '☀️' : '🌙'}
-            </button>
-            <button
-              onClick={toutEffacer}
-              className={`p-2 rounded-xl ${
-                darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50'
-              }`}
-            >
-              <Trash2 size={20} />
-            </button>
+            <div className="flex items-center gap-2">
+              <div className={`flex items-center gap-1 px-2 py-1 rounded-lg ${
+                darkMode ? 'bg-gray-800' : 'bg-white'
+              }`}>
+                <span className={nom === 'Greg' ? 'text-blue-500' : 'text-pink-500'}>
+                  {nom}
+                </span>
+                <button onClick={() => setNom('')} className="p-1">
+                  <LogOut size={14} />
+                </button>
+              </div>
+              
+              <button onClick={partagerListe} className="p-1.5 rounded-lg">
+                <Share2 size={16} />
+              </button>
+              <button onClick={() => setDarkMode(!darkMode)} className="p-1.5 rounded-lg">
+                {darkMode ? '☀️' : '🌙'}
+              </button>
+              <button onClick={toutEffacer} className="p-1.5 rounded-lg">
+                <Trash2 size={16} />
+              </button>
+            </div>
           </div>
         </header>
 
-        <div className="flex gap-2 mb-4 sm:mb-6">
+        <div className="flex gap-2 mb-4">
           <button
             onClick={() => setActiveTab(TABS.COURSES)}
-            className={`flex-1 py-2 px-4 rounded-xl transition-colors ${
+            className={`py-2 px-4 rounded-xl transition-colors ${
               activeTab === TABS.COURSES
-                ? darkMode
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-blue-500 text-white'
+                ? 'bg-blue-500 text-white'
                 : darkMode
                   ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                   : 'bg-white text-gray-600 hover:bg-gray-50'
@@ -360,11 +345,9 @@ function App() {
           </button>
           <button
             onClick={() => setActiveTab(TABS.CADEAUX)}
-            className={`flex-1 py-2 px-4 rounded-xl transition-colors ${
+            className={`py-2 px-4 rounded-xl transition-colors ${
               activeTab === TABS.CADEAUX
-                ? darkMode
-                  ? 'bg-pink-500 text-white'
-                  : 'bg-pink-500 text-white'
+                ? 'bg-pink-500 text-white'
                 : darkMode
                   ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                   : 'bg-white text-gray-600 hover:bg-gray-50'
@@ -375,30 +358,33 @@ function App() {
           </button>
         </div>
 
-        {activeTab === TABS.COURSES && (
-          <>
-            <form onSubmit={ajouterItem} className="mb-4 sm:mb-6">
-              <div className="space-y-2 p-2 sm:p-3 rounded-xl">
-                <div className="flex flex-col sm:flex-row gap-2">
+        {activeTab === TABS.COURSES ? (
+          <div>
+            <form onSubmit={ajouterItem} className="mb-4">
+              <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                <div className="flex items-center gap-2 mb-2">
                   <input
                     type="text"
                     value={newItem}
                     onChange={(e) => setNewItem(e.target.value)}
                     placeholder="Ajouter un article..."
-                    className={`flex-1 px-3 py-2 rounded-lg bg-transparent focus:outline-none ${
-                      darkMode ? 'text-white placeholder-gray-400' : 'text-gray-800 placeholder-gray-500'
+                    className={`flex-1 min-w-0 px-3 py-1.5 rounded-lg ${
+                      darkMode ? 'bg-gray-700' : 'bg-gray-50'
                     }`}
                   />
-                  <button type="submit" className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-                    <Plus size={20} />
+                  <button 
+                    type="submit" 
+                    className="flex-shrink-0 p-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  >
+                    <Plus size={18} />
                   </button>
                 </div>
                 
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex items-center gap-2">
                   <select
                     value={magasin}
                     onChange={(e) => setMagasin(e.target.value)}
-                    className={`w-full sm:w-1/2 px-3 py-2 rounded-lg ${
+                    className={`flex-1 min-w-0 px-2 py-1.5 rounded-lg text-sm ${
                       darkMode ? 'bg-gray-700' : 'bg-gray-50'
                     }`}
                   >
@@ -407,30 +393,27 @@ function App() {
                     ))}
                   </select>
                   
-                  <div className="flex gap-2 items-center">
-                    <select
-                      value={categorie}
-                      onChange={(e) => setCategorie(e.target.value)}
-                      className={`flex-1 px-3 py-2 rounded-lg ${
-                        darkMode ? 'bg-gray-700' : 'bg-gray-50'
-                      }`}
-                    >
-                      {Object.values(CATEGORIES).map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                    <label className="flex items-center gap-2 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        checked={urgent}
-                        onChange={(e) => setUrgent(e.target.checked)}
-                        className="rounded"
-                      />
-                      <span className={urgent ? 'text-red-500' : ''}>
-                        Urgent
-                      </span>
-                    </label>
-                  </div>
+                  <select
+                    value={categorie}
+                    onChange={(e) => setCategorie(e.target.value)}
+                    className={`flex-1 min-w-0 px-2 py-1.5 rounded-lg text-sm ${
+                      darkMode ? 'bg-gray-700' : 'bg-gray-50'
+                    }`}
+                  >
+                    {Object.values(CATEGORIES).map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  
+                  <label className="flex items-center gap-1 flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={urgent}
+                      onChange={(e) => setUrgent(e.target.checked)}
+                      className="rounded"
+                    />
+                    <span className="text-sm whitespace-nowrap">Urgent</span>
+                  </label>
                 </div>
               </div>
             </form>
@@ -682,10 +665,8 @@ function App() {
                 </div>
               )}
             </div>
-          </>
-        )}
-
-        {activeTab === TABS.CADEAUX && (
+          </div>
+        ) : (
           <div>
             <form onSubmit={(e) => {
               e.preventDefault();
