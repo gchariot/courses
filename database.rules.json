@@ -1,0 +1,32 @@
+{
+  "rules": {
+    "courses": {
+      ".read": true,
+      ".write": true,
+      "$item": {
+        ".validate": "newData.hasChildren(['nom', 'ajoutePar', 'magasin', 'timestamp'])",
+        "nom": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+        },
+        "ajoutePar": {
+          ".validate": "newData.isString() && (newData.val() === 'Greg' || newData.val() === 'Céline')"
+        },
+        "magasin": {
+          ".validate": "newData.isString()"
+        },
+        "timestamp": {
+          ".validate": "newData.isNumber()"
+        },
+        "complete": {
+          ".validate": "newData.isBoolean()"
+        },
+        "urgent": {
+          ".validate": "newData.isBoolean()"
+        },
+        "categorie": {
+          ".validate": "newData.isString()"
+        }
+      }
+    }
+  }
+} 

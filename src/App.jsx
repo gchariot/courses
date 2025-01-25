@@ -10,7 +10,10 @@ function App() {
   const [newItem, setNewItem] = useState('');
   const [nom, setNom] = useState(() => localStorage.getItem('nom') || '');
   const [recherche, setRecherche] = useState('');
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode');
+    return saved ? JSON.parse(saved) : true;
+  });
   const [sortType, setSortType] = useState('date');
   const [magasin, setMagasin] = useState(MAGASINS.CARREFOUR);
   const [itemEnEdition, setItemEnEdition] = useState(null);
@@ -23,6 +26,12 @@ function App() {
   });
   const [categorie, setCategorie] = useState(CATEGORIES.AUTRES);
   const [urgent, setUrgent] = useState(false);
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      Notification.requestPermission();
+    }
+  }, []);
 
   useEffect(() => {
     const itemsRef = ref(database, 'courses');
@@ -51,6 +60,7 @@ function App() {
     if ('Notification' in window && Notification.permission === 'granted') {
       items.forEach(item => {
         if (!item.notified && item.ajoutePar !== nom) {
+          playNotificationSound();
           new Notification(`Nouvel article ajouté par ${item.ajoutePar}`, {
             body: item.nom
           });
@@ -60,9 +70,33 @@ function App() {
     }
   }, [items, nom]);
 
+  useEffect(() => {
+    localStorage.setItem('darkMode', JSON.stringify(darkMode));
+  }, [darkMode]);
+
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.key === 'n' && e.ctrlKey) {
+        // Focus sur le champ d'ajout
+        document.querySelector('input[placeholder="Ajouter un article..."]').focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
+
+  useEffect(() => {
+    const itemsUrgents = items.filter(item => !item.complete && item.urgent).length;
+    document.title = itemsUrgents > 0 
+      ? `(${itemsUrgents} urgent${itemsUrgents > 1 ? 's' : ''}) Liste de courses`
+      : 'Liste de courses';
+  }, [items]);
+
   const ajouterItem = (e) => {
     e.preventDefault();
     if (newItem.trim() && nom) {
+      vibrate();
       const itemsRef = ref(database, 'courses');
       push(itemsRef, {
         nom: newItem.trim(),
@@ -88,8 +122,14 @@ function App() {
   };
 
   const supprimerItem = (id) => {
-    const itemRef = ref(database, `courses/${id}`);
-    remove(itemRef);
+    if (window.confirm('Voulez-vous vraiment supprimer cet article ?')) {
+      const element = document.getElementById(`item-${id}`);
+      element.classList.add('fade-out');
+      setTimeout(() => {
+        const itemRef = ref(database, `courses/${id}`);
+        remove(itemRef);
+      }, 300);
+    }
   };
 
   const toutEffacer = () => {
@@ -177,6 +217,17 @@ function App() {
     itemsNonCompletes.filter(item => item.urgent).length,
     [itemsNonCompletes]
   );
+
+  const playNotificationSound = () => {
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+    audio.play().catch(console.error);
+  };
+
+  const vibrate = () => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate(200);
+    }
+  };
 
   if (!nom) {
     return (
@@ -421,6 +472,7 @@ function App() {
                       {itemsDuMagasin.map(item => (
                         <div 
                           key={item.id}
+                          id={`item-${item.id}`}
                           className={`group flex items-center justify-between p-3 sm:p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow ${
                             item.urgent
                               ? darkMode 
@@ -506,6 +558,7 @@ function App() {
                                       {item.ajoutePar}
                                     </span>
                                     {' • '}{tempsEcoule(item.timestamp)}
+                                    {' • '}<span className="text-gray-500">{item.categorie}</span>
                                   </div>
                                 </>
                               )}
@@ -537,6 +590,7 @@ function App() {
                 {itemsCompletes.map(item => (
                   <div 
                     key={item.id}
+                    id={`item-${item.id}`}
                     className={`group flex items-center justify-between p-4 rounded-xl shadow-sm ${
                       darkMode 
                         ? 'bg-gray-800/50' 
