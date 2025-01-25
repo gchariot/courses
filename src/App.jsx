@@ -2,9 +2,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { database } from './firebase';
 import { ref, onValue, push, update, remove } from 'firebase/database';
-import { Check, Plus, Trash2, ShoppingCart, LogOut, Share2, Gift } from 'lucide-react';
+import { Check, Plus, Trash2, ShoppingCart, LogOut, Share2, Gift, Edit } from 'lucide-react';
 import { MAGASINS, CATEGORIES, TABS, OCCASIONS } from './config/constants';
-import { groupBy } from 'lodash';
 
 function App() {
   const [items, setItems] = useState([]);
@@ -33,6 +32,10 @@ function App() {
   const [destinataire, setDestinataire] = useState('');
   const [occasion, setOccasion] = useState(OCCASIONS.AUTRE);
   const [prix, setPrix] = useState('');
+  const [sortCadeaux, setSortCadeaux] = useState('date');
+  const [rechercheCadeaux, setRechercheCadeaux] = useState('');
+  const [cadeauEnEdition, setCadeauEnEdition] = useState(null);
+  const [filtreOccasion, setFiltreOccasion] = useState('TOUTES');
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -272,7 +275,7 @@ function App() {
           </p>
           <div className="space-y-4">
             <button 
-              onClick={() => setNom('Greg')}
+              onClick={() => setNom('Greg')}Z
               className="w-full py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg"
             >
               Greg
@@ -291,18 +294,16 @@ function App() {
 
   return (
     <div className={`min-h-screen w-full ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gray-50 text-gray-800'}`}>
-      <div className="max-w-xl mx-auto px-3 sm:px-4 md:px-6 py-4">
-        <header className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-6">
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <div className="p-2 sm:p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
-              <ShoppingCart className="text-white" size={20} sm:size={24} />
+      <div className="max-w-xl mx-auto px-2 sm:px-4 py-2 sm:py-4">
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 mb-4 sm:mb-6">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
+              <ShoppingCart className="text-white" size={20} />
             </div>
-            <h1 className="text-lg sm:text-xl font-bold">
-              Nos Courses
-            </h1>
+            <h1 className="text-lg sm:text-xl font-bold">Nos Courses</h1>
           </div>
           
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
             <div className={`flex items-center gap-2 px-3 py-2 rounded-xl ${
               darkMode ? 'bg-gray-800' : 'bg-white'
             } shadow-sm`}>
@@ -341,7 +342,7 @@ function App() {
           </div>
         </header>
 
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-4 sm:mb-6">
           <button
             onClick={() => setActiveTab(TABS.COURSES)}
             className={`flex-1 py-2 px-4 rounded-xl transition-colors ${
@@ -376,9 +377,9 @@ function App() {
 
         {activeTab === TABS.COURSES && (
           <>
-            <form onSubmit={ajouterItem} className="mb-6">
-              <div className={`space-y-2 p-3 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-sm`}>
-                <div className="flex gap-2">
+            <form onSubmit={ajouterItem} className="mb-4 sm:mb-6">
+              <div className="space-y-2 p-2 sm:p-3 rounded-xl">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
                     value={newItem}
@@ -467,7 +468,7 @@ function App() {
               </select>
             </div>
 
-            <div className="space-y-4 sm:space-y-6">
+            <div className="space-y-2 sm:space-y-3">
               {itemsNonCompletes.length > 0 && (
                 <section>
                   <h2 className={`text-lg font-semibold mb-3 ${
@@ -756,64 +757,123 @@ function App() {
               </div>
             </form>
 
+            <div className="flex justify-end mb-4">
+              <select 
+                onChange={(e) => setSortCadeaux(e.target.value)}
+                value={sortCadeaux}
+                className={`px-3 py-2 rounded-lg border ${
+                  darkMode 
+                    ? 'bg-gray-800 text-white border-gray-700' 
+                    : 'bg-white text-gray-800 border-gray-200'
+                }`}
+              >
+                <option value="date">Tri par date</option>
+                <option value="prix">Tri par prix</option>
+                <option value="occasion">Tri par occasion</option>
+              </select>
+            </div>
+
+            <div className="mb-4">
+              <input
+                type="text"
+                value={rechercheCadeaux}
+                onChange={(e) => setRechercheCadeaux(e.target.value)}
+                placeholder="Rechercher un cadeau..."
+                className={`w-full px-4 py-3 ${
+                  darkMode 
+                    ? 'bg-gray-800 text-white placeholder-gray-400' 
+                    : 'bg-white text-gray-800 placeholder-gray-500'
+                } rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-500`}
+              />
+            </div>
+
+            <div className="flex justify-end mb-4">
+              <select
+                value={filtreOccasion}
+                onChange={(e) => setFiltreOccasion(e.target.value)}
+                className={`px-3 py-2 rounded-lg ${
+                  darkMode ? 'bg-gray-700' : 'bg-gray-50'
+                }`}
+              >
+                <option value="TOUTES">Toutes les occasions</option>
+                {Object.values(OCCASIONS).map(occ => (
+                  <option key={occ} value={occ}>{occ}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="space-y-4">
-              {Object.entries(groupBy(cadeaux, 'destinataire')).map(([dest, items]) => (
-                <div key={dest}>
-                  <h3 className="text-lg font-semibold mb-2">{dest}</h3>
-                  <div className="space-y-2">
+              {Object.entries(groupBy(cadeaux.filter(cadeau => 
+                cadeau.nom.toLowerCase().includes(rechercheCadeaux.toLowerCase()) &&
+                (filtreOccasion === 'TOUTES' || cadeau.occasion === filtreOccasion)
+              ).sort((a, b) => {
+                switch(sortCadeaux) {
+                  case 'prix':
+                    return parseFloat(b.prix) - parseFloat(a.prix);
+                  case 'occasion':
+                    return a.occasion.localeCompare(b.occasion);
+                  default:
+                    return b.timestamp - a.timestamp;
+                }
+              }), 'destinataire')).map(([dest, items]) => (
+                <div key={dest} className={`p-4 rounded-xl ${
+                  darkMode ? 'bg-gray-800/50' : 'bg-white'
+                }`}>
+                  <h3 className="text-lg font-semibold mb-4">{dest}</h3>
+                  <div className="space-y-3">
                     {items.map(cadeau => (
                       <div
                         key={cadeau.id}
-                        className={`group flex items-center justify-between p-4 rounded-xl shadow-sm ${
-                          darkMode ? 'bg-gray-800' : 'bg-white'
+                        className={`group flex items-center justify-between p-3 rounded-lg ${
+                          darkMode ? 'bg-gray-800' : 'bg-gray-50'
                         }`}
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <span className={`${cadeau.achete ? 'line-through opacity-50' : ''} font-medium`}>
+                            <span className={cadeau.achete ? 'line-through opacity-50' : ''}>
                               {cadeau.nom}
                             </span>
-                            {cadeau.prix && cadeau.prix !== 'Non défini' && (
-                              <span className={`text-sm px-2 py-1 rounded-lg ${
-                                darkMode 
-                                  ? 'bg-gray-700 text-green-400' 
-                                  : 'bg-green-50 text-green-600'
-                              }`}>
-                                {cadeau.prix}€
-                              </span>
-                            )}
                           </div>
-                          <div className="text-sm text-gray-500 mt-1">
+                          <div className="text-sm text-gray-500">
                             {cadeau.occasion} • Ajouté par {cadeau.ajoutePar}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => {
-                              const cadeauRef = ref(database, `cadeaux/${cadeau.id}`);
-                              update(cadeauRef, { achete: !cadeau.achete });
-                            }}
-                            className={`p-2 rounded-lg ${
-                              cadeau.achete 
-                                ? 'bg-green-500' 
-                                : darkMode 
-                                  ? 'bg-gray-700 hover:bg-gray-600' 
-                                  : 'bg-gray-100 hover:bg-gray-200'
-                            } text-white transition-colors`}
-                          >
-                            <Check size={16} />
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm('Supprimer cette idée ?')) {
+                        
+                        <div className="flex items-center gap-4">
+                          <span className={`text-sm font-medium ${
+                            darkMode ? 'text-green-400' : 'text-green-600'
+                          }`}>
+                            {cadeau.prix}€
+                          </span>
+                          
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
                                 const cadeauRef = ref(database, `cadeaux/${cadeau.id}`);
-                                remove(cadeauRef);
-                              }
-                            }}
-                            className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:text-red-600"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                                update(cadeauRef, { achete: !cadeau.achete });
+                              }}
+                              className={`p-2 rounded-lg ${
+                                cadeau.achete 
+                                  ? 'bg-green-500 text-white' 
+                                  : darkMode 
+                                    ? 'bg-gray-700 hover:bg-gray-600' 
+                                    : 'bg-gray-200 hover:bg-gray-300'
+                              }`}
+                            >
+                              <Check size={16} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm('Supprimer cette idée ?')) {
+                                  const cadeauRef = ref(database, `cadeaux/${cadeau.id}`);
+                                  remove(cadeauRef);
+                                }
+                              }}
+                              className="p-2 text-red-500 hover:text-red-600"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
