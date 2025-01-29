@@ -1,21 +1,113 @@
 // src/App.jsx
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { database } from './firebase';
 import { ref, onValue, push, update, remove } from 'firebase/database';
-import { Check, Plus, Trash2, ShoppingCart, LogOut, Share2, Gift, Edit } from 'lucide-react';
+import { Check, Plus, Trash2, ShoppingCart, LogOut, Share2, Gift } from 'lucide-react';
 import { MAGASINS, CATEGORIES, TABS, OCCASIONS } from './config/constants';
 
-function App() {
-  const [items, setItems] = useState([]);
-  const [newItem, setNewItem] = useState('');
-  const [nom, setNom] = useState(() => localStorage.getItem('nom') || '');
-  const [recherche, setRecherche] = useState('');
+// Création d'un composant ItemList pour éviter la répétition
+const ItemList = React.memo(({ items, onToggleComplete, onDelete, darkMode }) => {
+  return (
+    <div className="space-y-2">
+      {items.map(item => (
+        <div 
+          key={item.id}
+          id={`item-${item.id}`}
+          className={`group flex items-center justify-between p-4 rounded-xl shadow-sm ${
+            darkMode 
+              ? 'bg-gray-800/50' 
+              : 'bg-green-50'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => onToggleComplete(item.id, item.complete)}
+              className="p-2 rounded-lg bg-green-500 text-white"
+            >
+              <Check size={16} />
+            </button>
+            <div>
+              <span className={`line-through ${
+                darkMode ? 'text-gray-400' : 'text-gray-500'
+              }`}>
+                {item.nom}
+              </span>
+              <div className="text-sm">
+                {item.completePar && `Pris par ${item.completePar}`}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => onDelete(item.id)}
+            className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-600 transition-opacity"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+});
+
+// Hook personnalisé pour la gestion des notifications
+const useNotifications = (items, nom) => {
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      items.forEach(item => {
+        if (!item.notified && item.ajoutePar !== nom) {
+          playNotificationSound();
+          new Notification(`Nouvel article ajouté par ${item.ajoutePar}`, {
+            body: item.nom
+          });
+          update(ref(database, `courses/${item.id}`), { notified: true });
+        }
+      });
+    }
+  }, [items, nom]);
+};
+
+// Hook personnalisé pour la gestion du dark mode
+const useDarkMode = () => {
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     return saved ? JSON.parse(saved) : true;
   });
-  const [sortType, setSortType] = useState('date');
-  const [magasin, setMagasin] = useState(MAGASINS.CARREFOUR);
+
+  useEffect(() => {
+    localStorage.setItem('darkMode', JSON.stringify(darkMode));
+  }, [darkMode]);
+
+  return [darkMode, setDarkMode];
+};
+
+// Fonction utilitaire pour jouer un son de notification
+const playNotificationSound = () => {
+  const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+  audio.play().catch(console.error);
+};
+
+function App() {
+  // États regroupés par fonctionnalité
+  const [filters, setFilters] = useState({
+    recherche: '',
+    sortType: 'date',
+    magasin: MAGASINS.CARREFOUR,
+    categorie: CATEGORIES.AUTRES,
+    urgent: false,
+    activeTab: TABS.COURSES,
+  });
+
+  const [newItemData, setNewItemData] = useState({
+    newItem: '',
+    newCadeau: '',
+    destinataire: '',
+    occasion: OCCASIONS.AUTRE,
+    prix: '',
+  });
+
+  const [items, setItems] = useState([]);
+  const [nom, setNom] = useState(() => localStorage.getItem('nom') || '');
+  const [darkMode, setDarkMode] = useDarkMode();
   const [itemEnEdition, setItemEnEdition] = useState(null);
   const [texteEdition, setTexteEdition] = useState('');
   const [magasinsReplies, setMagasinsReplies] = useState(() => {
@@ -24,18 +116,16 @@ function App() {
       return acc;
     }, {});
   });
-  const [categorie, setCategorie] = useState(CATEGORIES.AUTRES);
-  const [urgent, setUrgent] = useState(false);
-  const [activeTab, setActiveTab] = useState(TABS.COURSES);
+
+  // États pour les cadeaux
   const [cadeaux, setCadeaux] = useState([]);
-  const [newCadeau, setNewCadeau] = useState('');
-  const [destinataire, setDestinataire] = useState('');
-  const [occasion, setOccasion] = useState(OCCASIONS.AUTRE);
-  const [prix, setPrix] = useState('');
   const [sortCadeaux, setSortCadeaux] = useState('date');
   const [rechercheCadeaux, setRechercheCadeaux] = useState('');
-  const [cadeauEnEdition, setCadeauEnEdition] = useState(null);
   const [filtreOccasion, setFiltreOccasion] = useState('TOUTES');
+  const [cadeauEnEdition, setCadeauEnEdition] = useState(null);
+
+  // Utilisation des hooks personnalisés
+  useNotifications(items, nom);
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -120,24 +210,44 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  const ajouterItem = (e) => {
+  useEffect(() => {
+    // Ajouter une meta viewport pour le scaling mobile
+    const viewport = document.querySelector('meta[name=viewport]');
+    if (!viewport) {
+      const meta = document.createElement('meta');
+      meta.name = 'viewport';
+      meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
+  // Optimisation des callbacks avec useCallback
+  const handleFilterChange = useCallback((key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  }, []);
+
+  const handleNewItemChange = useCallback((key, value) => {
+    setNewItemData(prev => ({ ...prev, [key]: value }));
+  }, []);
+
+  const ajouterItem = useCallback((e) => {
     e.preventDefault();
-    if (newItem.trim() && nom) {
+    if (newItemData.newItem.trim() && nom) {
       vibrate();
       const itemsRef = ref(database, 'courses');
       push(itemsRef, {
-        nom: newItem.trim(),
+        nom: newItemData.newItem.trim(),
         complete: false,
         ajoutePar: nom,
-        magasin,
-        categorie,
-        urgent,
+        magasin: filters.magasin,
+        categorie: filters.categorie,
+        urgent: filters.urgent,
         timestamp: Date.now()
       });
-      setNewItem('');
-      setUrgent(false);
+      setNewItemData(prev => ({ ...prev, newItem: '' }));
+      setFilters(prev => ({ ...prev, urgent: false }));
     }
-  };
+  }, [newItemData.newItem, nom, filters.magasin, filters.categorie, filters.urgent]);
 
   const toggleComplete = (id, complete) => {
     const itemRef = ref(database, `courses/${id}`);
@@ -175,11 +285,12 @@ function App() {
     return `Il y a ${jours}j`;
   };
 
-  const itemsFiltres = useMemo(() => 
-    items.filter(item => 
-      item.nom.toLowerCase().includes(recherche.toLowerCase())
+  // Optimisation des calculs de filtrage
+  const filteredItems = useMemo(() => {
+    const filtered = items.filter(item => 
+      item.nom.toLowerCase().includes(filters.recherche.toLowerCase())
     ).sort((a, b) => {
-      switch(sortType) {
+      switch(filters.sortType) {
         case 'date':
           return b.timestamp - a.timestamp;
         case 'nom':
@@ -191,18 +302,13 @@ function App() {
         default:
           return 0;
       }
-    }), [items, recherche, sortType]
-  );
-
-  const itemsNonCompletes = useMemo(() => 
-    itemsFiltres.filter(item => !item.complete),
-    [itemsFiltres]
-  );
-
-  const itemsCompletes = useMemo(() => 
-    itemsFiltres.filter(item => item.complete),
-    [itemsFiltres]
-  );
+    });
+    
+    return {
+      completed: filtered.filter(item => item.complete),
+      uncompleted: filtered.filter(item => !item.complete)
+    };
+  }, [items, filters.recherche, filters.sortType]);
 
   const modifierItem = (id) => {
     const itemRef = ref(database, `courses/${id}`);
@@ -222,7 +328,7 @@ function App() {
   };
 
   const partagerListe = () => {
-    const itemsAPartager = itemsNonCompletes
+    const itemsAPartager = filteredItems.uncompleted
       .map(item => `${item.urgent ? '🔴' : '•'} ${item.nom} (${item.magasin})`)
       .join('\n');
       
@@ -241,14 +347,9 @@ function App() {
   };
 
   const itemsUrgents = useMemo(() => 
-    itemsNonCompletes.filter(item => item.urgent).length,
-    [itemsNonCompletes]
+    filteredItems.uncompleted.filter(item => item.urgent).length,
+    [filteredItems.uncompleted]
   );
-
-  const playNotificationSound = () => {
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-    audio.play().catch(console.error);
-  };
 
   const vibrate = () => {
     if ('vibrate' in navigator) {
@@ -262,6 +363,14 @@ function App() {
       [item[key]]: [...(result[item[key]] || []), item],
     }), {});
   };
+
+  // Optimisation des calculs avec useMemo
+  const itemsParMagasin = useMemo(() => {
+    return Object.values(MAGASINS).reduce((acc, mag) => {
+      acc[mag] = filteredItems.uncompleted.filter(item => item.magasin === mag);
+      return acc;
+    }, {});
+  }, [filteredItems.uncompleted]);
 
   if (!nom) {
     return (
@@ -294,21 +403,21 @@ function App() {
 
   return (
     <div className={`min-h-screen w-full ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gray-50 text-gray-800'}`}>
-      <div className="max-w-xl mx-auto px-2 xs:px-3 sm:px-4">
-        <header className="flex flex-col xs:flex-row items-start xs:items-center gap-2">
+      <div className="max-w-xl mx-auto px-2 py-2 sm:px-4 sm:py-4">
+        <header className="flex flex-col xs:flex-row items-start xs:items-center gap-4 mb-6">
           <div className="flex items-center justify-between w-full xs:w-auto">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl">
-                <ShoppingCart className="text-white" size={18} />
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl">
+                <ShoppingCart className="text-white" size={20} />
               </div>
-              <h1 className="text-lg font-bold">Nos Courses</h1>
+              <h1 className="text-xl font-bold">Nos Courses</h1>
             </div>
             
-            <div className="flex items-center gap-1 xs:gap-2">
-              <div className={`flex items-center gap-1 px-2 py-1 rounded-lg ${
+            <div className="flex items-center gap-2 xs:gap-3">
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${
                 darkMode ? 'bg-gray-800' : 'bg-white'
               }`}>
-                <span className={nom === 'Greg' ? 'text-blue-500' : 'text-pink-500'}>
+                <span className={`${nom === 'Greg' ? 'text-blue-500' : 'text-pink-500'} font-medium`}>
                   {nom}
                 </span>
                 <button onClick={() => setNom('')} className="p-1">
@@ -316,57 +425,57 @@ function App() {
                 </button>
               </div>
               
-              <button onClick={partagerListe} className="p-1.5 rounded-lg">
-                <Share2 size={16} />
+              <button onClick={partagerListe} className="p-2 rounded-lg hover:bg-gray-800/20">
+                <Share2 size={18} />
               </button>
-              <button onClick={() => setDarkMode(!darkMode)} className="p-1.5 rounded-lg">
+              <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-lg hover:bg-gray-800/20">
                 {darkMode ? '☀️' : '🌙'}
               </button>
-              <button onClick={toutEffacer} className="p-1.5 rounded-lg">
-                <Trash2 size={16} />
+              <button onClick={toutEffacer} className="p-2 rounded-lg hover:bg-gray-800/20">
+                <Trash2 size={18} />
               </button>
             </div>
           </div>
         </header>
 
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-3 mb-6">
           <button
-            onClick={() => setActiveTab(TABS.COURSES)}
-            className={`py-2 px-4 rounded-xl transition-colors ${
-              activeTab === TABS.COURSES
+            onClick={() => setFilters(prev => ({ ...prev, activeTab: TABS.COURSES }))}
+            className={`flex items-center py-2.5 px-4 rounded-xl transition-colors ${
+              filters.activeTab === TABS.COURSES
                 ? 'bg-blue-500 text-white'
                 : darkMode
                   ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                   : 'bg-white text-gray-600 hover:bg-gray-50'
             }`}
           >
-            <ShoppingCart size={18} className="inline-block mr-2" />
+            <ShoppingCart size={18} className="mr-2" />
             Courses
           </button>
           <button
-            onClick={() => setActiveTab(TABS.CADEAUX)}
-            className={`py-2 px-4 rounded-xl transition-colors ${
-              activeTab === TABS.CADEAUX
+            onClick={() => setFilters(prev => ({ ...prev, activeTab: TABS.CADEAUX }))}
+            className={`flex items-center py-2.5 px-4 rounded-xl transition-colors ${
+              filters.activeTab === TABS.CADEAUX
                 ? 'bg-pink-500 text-white'
                 : darkMode
                   ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                   : 'bg-white text-gray-600 hover:bg-gray-50'
             }`}
           >
-            <Gift size={18} className="inline-block mr-2" />
+            <Gift size={18} className="mr-2" />
             Cadeaux
           </button>
         </div>
 
-        {activeTab === TABS.COURSES ? (
+        {filters.activeTab === TABS.COURSES ? (
           <div>
             <form onSubmit={ajouterItem} className="mb-4">
               <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
                 <div className="flex items-center gap-2 mb-2">
                   <input
                     type="text"
-                    value={newItem}
-                    onChange={(e) => setNewItem(e.target.value)}
+                    value={newItemData.newItem}
+                    onChange={(e) => handleNewItemChange('newItem', e.target.value)}
                     placeholder="Ajouter un article..."
                     className={`flex-1 min-w-0 px-3 py-1.5 rounded-lg ${
                       darkMode ? 'bg-gray-700' : 'bg-gray-50'
@@ -382,8 +491,8 @@ function App() {
                 
                 <div className="flex items-center gap-2">
                   <select
-                    value={magasin}
-                    onChange={(e) => setMagasin(e.target.value)}
+                    value={filters.magasin}
+                    onChange={(e) => handleFilterChange('magasin', e.target.value)}
                     className={`flex-1 min-w-0 px-2 py-1.5 rounded-lg text-sm ${
                       darkMode ? 'bg-gray-700' : 'bg-gray-50'
                     }`}
@@ -394,8 +503,8 @@ function App() {
                   </select>
                   
                   <select
-                    value={categorie}
-                    onChange={(e) => setCategorie(e.target.value)}
+                    value={filters.categorie}
+                    onChange={(e) => handleFilterChange('categorie', e.target.value)}
                     className={`flex-1 min-w-0 px-2 py-1.5 rounded-lg text-sm ${
                       darkMode ? 'bg-gray-700' : 'bg-gray-50'
                     }`}
@@ -408,8 +517,8 @@ function App() {
                   <label className="flex items-center gap-1 flex-shrink-0">
                     <input
                       type="checkbox"
-                      checked={urgent}
-                      onChange={(e) => setUrgent(e.target.checked)}
+                      checked={filters.urgent}
+                      onChange={(e) => handleFilterChange('urgent', e.target.checked)}
                       className="rounded"
                     />
                     <span className="text-sm whitespace-nowrap">Urgent</span>
@@ -421,8 +530,8 @@ function App() {
             <div className="mb-4">
               <input
                 type="text"
-                value={recherche}
-                onChange={(e) => setRecherche(e.target.value)}
+                value={filters.recherche}
+                onChange={(e) => handleFilterChange('recherche', e.target.value)}
                 placeholder="Rechercher un article..."
                 className={`w-full px-4 py-3 ${
                   darkMode 
@@ -435,9 +544,9 @@ function App() {
             <div className="flex justify-end mb-2">
               <select 
                 onChange={(e) => {
-                  setSortType(e.target.value);
+                  handleFilterChange('sortType', e.target.value);
                 }}
-                value={sortType}
+                value={filters.sortType}
                 className={`px-3 py-2 rounded-lg border ${
                   darkMode 
                     ? 'bg-gray-800 text-white border-gray-700' 
@@ -452,12 +561,12 @@ function App() {
             </div>
 
             <div className="space-y-2 sm:space-y-3">
-              {itemsNonCompletes.length > 0 && (
+              {filteredItems.uncompleted.length > 0 && (
                 <section>
                   <h2 className={`text-lg font-semibold mb-3 ${
                     darkMode ? 'text-white' : 'text-gray-800'
                   }`}>
-                    À acheter ({itemsNonCompletes.length})
+                    À acheter ({filteredItems.uncompleted.length})
                     {itemsUrgents > 0 && (
                       <span className="ml-2 text-sm bg-red-500 text-white px-2 py-1 rounded-full">
                         {itemsUrgents} urgent{itemsUrgents > 1 ? 's' : ''}
@@ -465,7 +574,7 @@ function App() {
                     )}
                   </h2>
                   {Object.values(MAGASINS).map(magasin => {
-                    const itemsDuMagasin = itemsNonCompletes.filter(item => item.magasin === magasin);
+                    const itemsDuMagasin = filteredItems.uncompleted.filter(item => item.magasin === magasin);
                     if (itemsDuMagasin.length === 0) return null;
                     
                     return (
@@ -604,57 +713,23 @@ function App() {
                 </section>
               )}
 
-              {itemsCompletes.length > 0 && (
+              {filteredItems.completed.length > 0 && (
                 <section>
                   <h2 className={`text-lg font-semibold mb-3 ${
                     darkMode ? 'text-white' : 'text-gray-800'
                   }`}>
-                    Déjà pris ({itemsCompletes.length})
+                    Déjà pris ({filteredItems.completed.length})
                   </h2>
-                  <div className="space-y-2">
-                    {itemsCompletes.map(item => (
-                      <div 
-                        key={item.id}
-                        id={`item-${item.id}`}
-                        className={`group flex items-center justify-between p-4 rounded-xl shadow-sm ${
-                          darkMode 
-                            ? 'bg-gray-800/50' 
-                            : 'bg-green-50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => toggleComplete(item.id, item.complete)}
-                            className="p-2 rounded-lg bg-green-500 text-white"
-                          >
-                            <Check size={16} />
-                          </button>
-                          <div>
-                            <span className={`line-through ${
-                              darkMode ? 'text-gray-400' : 'text-gray-500'
-                            }`}>
-                              {item.nom}
-                            </span>
-                            <div className="text-sm">
-                              Pris par <span className={item.completePar === 'Greg' ? 'text-blue-500' : 'text-pink-500'}>
-                                {item.completePar}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => supprimerItem(item.id)}
-                          className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-600 transition-opacity"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                  <ItemList 
+                    items={filteredItems.completed}
+                    onToggleComplete={toggleComplete}
+                    onDelete={supprimerItem}
+                    darkMode={darkMode}
+                  />
                 </section>
               )}
 
-              {items.length === 0 && (
+              {filteredItems.uncompleted.length === 0 && (
                 <div className="text-center py-12">
                   <div className="text-gray-400 mb-2">
                     Votre liste est vide
@@ -670,27 +745,31 @@ function App() {
           <div>
             <form onSubmit={(e) => {
               e.preventDefault();
-              if (newCadeau && destinataire) {
+              if (newItemData.newCadeau && newItemData.destinataire) {
                 const cadeauxRef = ref(database, 'cadeaux');
                 push(cadeauxRef, {
-                  nom: newCadeau.trim(),
-                  destinataire: destinataire.trim(),
-                  occasion,
-                  prix: prix || 'Non défini',
+                  nom: newItemData.newCadeau.trim(),
+                  destinataire: newItemData.destinataire.trim(),
+                  occasion: newItemData.occasion,
+                  prix: newItemData.prix || 'Non défini',
                   ajoutePar: nom,
                   timestamp: Date.now(),
                   achete: false
                 });
-                setNewCadeau('');
-                setDestinataire('');
-                setPrix('');
+                setNewItemData(prev => ({
+                  ...prev,
+                  newCadeau: '',
+                  destinataire: '',
+                  occasion: OCCASIONS.AUTRE,
+                  prix: '',
+                }));
               }
             }} className="mb-6">
               <div className={`space-y-2 p-3 rounded-xl ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-sm`}>
                 <input
                   type="text"
-                  value={newCadeau}
-                  onChange={(e) => setNewCadeau(e.target.value)}
+                  value={newItemData.newCadeau}
+                  onChange={(e) => handleNewItemChange('newCadeau', e.target.value)}
                   placeholder="Idée cadeau..."
                   className={`w-full px-3 py-2 rounded-lg bg-transparent focus:outline-none ${
                     darkMode ? 'text-white placeholder-gray-400' : 'text-gray-800 placeholder-gray-500'
@@ -699,8 +778,8 @@ function App() {
                 <div className="flex flex-col xs:flex-row gap-2">
                   <input
                     type="text"
-                    value={destinataire}
-                    onChange={(e) => setDestinataire(e.target.value)}
+                    value={newItemData.destinataire}
+                    onChange={(e) => handleNewItemChange('destinataire', e.target.value)}
                     placeholder="Pour qui ?"
                     className={`flex-1 px-3 py-2 rounded-lg ${
                       darkMode ? 'bg-gray-700' : 'bg-gray-50'
@@ -708,8 +787,8 @@ function App() {
                   />
                   <input
                     type="text"
-                    value={prix}
-                    onChange={(e) => setPrix(e.target.value)}
+                    value={newItemData.prix}
+                    onChange={(e) => handleNewItemChange('prix', e.target.value)}
                     placeholder="Prix estimé"
                     className={`w-full xs:w-1/3 px-3 py-2 rounded-lg ${
                       darkMode ? 'bg-gray-700' : 'bg-gray-50'
@@ -718,8 +797,8 @@ function App() {
                 </div>
                 <div className="flex justify-between items-center">
                   <select
-                    value={occasion}
-                    onChange={(e) => setOccasion(e.target.value)}
+                    value={newItemData.occasion}
+                    onChange={(e) => handleNewItemChange('occasion', e.target.value)}
                     className={`px-3 py-2 rounded-lg ${
                       darkMode ? 'bg-gray-700' : 'bg-gray-50'
                     }`}
@@ -798,47 +877,79 @@ function App() {
                 }
               }), 'destinataire')).map(([dest, items]) => (
                 <div key={dest} className={`p-4 rounded-xl ${
-                  darkMode ? 'bg-gray-800/50' : 'bg-white'
+                  darkMode ? 'bg-gray-800/50' : 'bg-pink-50'
                 }`}>
-                  <h3 className="text-lg font-semibold mb-4">{dest}</h3>
+                  <h3 className={`text-lg font-semibold mb-4 ${
+                    darkMode ? 'text-pink-300' : 'text-pink-600'
+                  }`}>
+                    🎁 {dest}
+                  </h3>
                   <div className="space-y-3">
                     {items.map(cadeau => (
                       <div
                         key={cadeau.id}
-                        className={`group flex items-center justify-between p-3 rounded-lg ${
-                          darkMode ? 'bg-gray-800' : 'bg-gray-50'
+                        className={`group flex items-center justify-between p-4 rounded-lg transition-all ${
+                          cadeau.achete
+                            ? darkMode 
+                              ? 'bg-gray-700/50' 
+                              : 'bg-gray-100'
+                            : darkMode 
+                              ? 'bg-gray-800 hover:bg-gray-750' 
+                              : 'bg-white hover:bg-pink-100/80'
+                        } ${
+                          cadeau.achete ? 'opacity-60' : ''
                         }`}
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <span className={cadeau.achete ? 'line-through opacity-50' : ''}>
+                            <span className={`text-lg ${cadeau.achete ? 'line-through' : ''}`}>
                               {cadeau.nom}
                             </span>
+                            <span className={`text-sm px-2 py-0.5 rounded-full ${
+                              darkMode 
+                                ? 'bg-gray-700 text-pink-300' 
+                                : 'bg-pink-100 text-pink-600'
+                            }`}>
+                              {cadeau.occasion}
+                            </span>
                           </div>
-                          <div className="text-sm text-gray-500">
-                            {cadeau.occasion} • Ajouté par {cadeau.ajoutePar}
+                          <div className={`text-sm mt-1 ${
+                            darkMode ? 'text-gray-400' : 'text-gray-500'
+                          }`}>
+                            Ajouté par <span className={
+                              cadeau.ajoutePar === 'Greg' ? 'text-blue-500' : 'text-pink-500'
+                            }>{cadeau.ajoutePar}</span>
+                            {' • '}{tempsEcoule(cadeau.timestamp)}
                           </div>
                         </div>
                         
                         <div className="flex items-center gap-4">
-                          <span className={`text-sm font-medium ${
-                            darkMode ? 'text-green-400' : 'text-green-600'
-                          }`}>
-                            {cadeau.prix}€
-                          </span>
+                          {cadeau.prix && (
+                            <span className={`text-sm font-medium px-3 py-1 rounded-full ${
+                              darkMode 
+                                ? 'bg-gray-700 text-green-400' 
+                                : 'bg-green-100 text-green-600'
+                            }`}>
+                              {cadeau.prix}€
+                            </span>
+                          )}
                           
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => {
                                 const cadeauRef = ref(database, `cadeaux/${cadeau.id}`);
-                                update(cadeauRef, { achete: !cadeau.achete });
+                                update(cadeauRef, { 
+                                  achete: !cadeau.achete,
+                                  achetePar: !cadeau.achete ? nom : null,
+                                  dateAchat: !cadeau.achete ? Date.now() : null
+                                });
                               }}
-                              className={`p-2 rounded-lg ${
+                              className={`p-2 rounded-lg transition-colors ${
                                 cadeau.achete 
-                                  ? 'bg-green-500 text-white' 
+                                  ? 'bg-green-500 text-white hover:bg-green-600' 
                                   : darkMode 
-                                    ? 'bg-gray-700 hover:bg-gray-600' 
-                                    : 'bg-gray-200 hover:bg-gray-300'
+                                    ? 'bg-pink-500 text-white hover:bg-pink-600' 
+                                    : 'bg-pink-100 text-pink-600 hover:bg-pink-200'
                               }`}
                             >
                               <Check size={16} />
@@ -850,7 +961,7 @@ function App() {
                                   remove(cadeauRef);
                                 }
                               }}
-                              className="p-2 text-red-500 hover:text-red-600"
+                              className="p-2 text-red-500 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                               <Trash2 size={16} />
                             </button>

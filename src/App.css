@@ -3,16 +3,28 @@
 @tailwind utilities;
 
 /* Vous pouvez garder vos styles personnalisés en dessous si nécessaire */
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden; /* Empêcher le scroll horizontal */
+}
+
 #root {
-  max-width: 1280px;
+  width: 100%;
+  min-height: 100dvh; /* dvh pour les navigateurs modernes */
+  min-height: 100vh; /* fallback pour les anciens navigateurs */
   margin: 0 auto;
-  padding: 1rem;
+  padding: 0;
   text-align: center;
+  display: flex;
+  flex-direction: column;
 }
 
 @media (min-width: 640px) {
   #root {
-    padding: 2rem;
+    padding: 0;
   }
 }
 
